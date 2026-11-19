@@ -1,0 +1,47 @@
+# Local test of the Railway stack (same images and variables as the template).
+# Railway's own Postgres is stood in by pgvector/pgvector. Run from the repo root:
+#   docker compose -f test/compose.yml up -d --build
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.7-pg17
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: localtestpg
+      POSTGRES_DB: railway
+    volumes: [pgdata:/var/lib/postgresql/data]
+  etcd:
+    build: ../etcd
+    environment:
+      ETCD_ADVERTISE_CLIENT_URLS: http://etcd:2379
+    volumes: [etcddata:/etcd]
+  minio:
+    build: ../minio
+    environment:
+      MINIO_ROOT_USER: localtestuser
+      MINIO_ROOT_PASSWORD: localtestminio
+    volumes: [miniodata:/minio_data]
+  milvus:
+    build: ../milvus
+    environment:
+      ETCD_ENDPOINTS: etcd:2379
+      MINIO_ADDRESS: minio:9000
+      MINIO_ACCESS_KEY_ID: localtestuser
+      MINIO_SECRET_ACCESS_KEY: localtestminio
+    volumes: [milvusdata:/var/lib/milvus]
+    depends_on: [etcd, minio]
+  rocketride:
+    build: ../rocketride
+    ports: ["5565:5565"]
+    environment:
+      PORT: "5565"
+      ROCKETRIDE_APIKEY: localtestkey
+      ROCKETRIDE_POSTGRES_HOST: postgres
+      ROCKETRIDE_POSTGRES_PORT: "5432"
+      ROCKETRIDE_POSTGRES_USER: postgres
+      ROCKETRIDE_POSTGRES_PASSWORD: localtestpg
+      ROCKETRIDE_POSTGRES_DATABASE: railway
+      ROCKETRIDE_MILVUS_HOST: milvus
+      ROCKETRIDE_MILVUS_PORT: "19530"
+    volumes: [rrdata:/opt/data]
+    depends_on: [postgres, milvus]
+volumes: {pgdata: {}, etcddata: {}, miniodata: {}, milvusdata: {}, rrdata: {}}
